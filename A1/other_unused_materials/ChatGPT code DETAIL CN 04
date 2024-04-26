@@ -1,0 +1,673 @@
+>
+你好，我们现在开始用python,docker和flask制作网站。
+我需要做一个用户登录系统和一个餐厅登录系统。餐厅登录系统为企业账号，用户登录系统为普通用户。
+但是在我创建两个类之后，只有普通用户成功地登录，全部企业账号登录后，都進入了一个普通用户账号信息。
+可能是我的一些設置不適用於企業帳戶？
+我该如何解决这个问题？谢谢!
+以下是我的部分route.py內容:
+
+
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
+@login_required
+def index():
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(body=form.post.data, author=current_user)
+        db.session.add(post)
+        db.session.commit()
+        flash(_('Your post is now live!'))
+        return redirect(url_for('index'))
+    page = request.args.get('page', 1, type=int)
+    posts = current_user.followed_posts().paginate(
+        page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+    next_url = url_for(
+        'index', page=posts.next_num) if posts.next_num else None
+    prev_url = url_for(
+        'index', page=posts.prev_num) if posts.prev_num else None
+    return render_template('index.html.j2', title=_('Home'), form=form,
+                           posts=posts.items, next_url=next_url,
+                           prev_url=prev_url)
+
+
+@app.route('/explore')
+@login_required
+def explore():
+    page = request.args.get('page', 1, type=int)
+    posts = Post.query.order_by(Post.timestamp.desc()).paginate(
+        page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+    next_url = url_for(
+        'explore', page=posts.next_num) if posts.next_num else None
+    prev_url = url_for(
+        'explore', page=posts.prev_num) if posts.prev_num else None
+    return render_template('index.html.j2', title=_('Explore'),
+                           posts=posts.items, next_url=next_url,
+                           prev_url=prev_url)
+
+
+@app.route('/user/<username>')
+@login_required
+def user(username):
+    user = User.query.filter_by(username=username).first_or_404()
+    page = request.args.get('page', 1, type=int)
+    posts = user.followed_posts().paginate(
+        page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+    next_url = url_for(
+        'index', page=posts.next_num) if posts.next_num else None
+    prev_url = url_for(
+        'index', page=posts.prev_num) if posts.prev_num else None
+    return render_template('user.html.j2', user=user, posts=posts.items,
+                           next_url=next_url, prev_url=prev_url)
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user_type = request.form['user_type']
+        if user_type == 'user':
+            user = User.query.filter_by(username=form.username.data).first()
+            if user is None or not user.check_password(form.password.data):
+                flash(_('Invalid username or password'))
+                return redirect(url_for('login'))
+            login_user(user, remember=form.remember_me.data)
+        elif user_type == 'restaurant':
+            restaurant = Restaurant.query.filter_by(
+            username=form.username.data).first()
+            if restaurant is None or not restaurant.check_password(form.password.data):
+                flash(_('Invalid username or password'))
+                return redirect(url_for('login'))
+            login_user(restaurant, remember=form.remember_me.data)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        return redirect(next_page)
+    return render_template('login.html.j2', title=_('Sign In'), form=form)
+
+
+
+@app.route('/edit_profile', methods=['GET', 'POST'])
+@login_required
+def edit_profile():
+    form = EditProfileForm(current_user.username)
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.about_me = form.about_me.data
+        db.session.commit()
+        flash(_('Your changes have been saved.'))
+        return redirect(url_for('edit_profile'))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.about_me.data = current_user.about_me
+    return render_template('edit_profile.html.j2', title=_('Edit Profile'),
+                           form=form)
+
+
+@app.route('/restaurant/<name>')
+@login_required
+def restaurant(name):
+    restaurant = restaurant.query.filter_by(name=name).first_or_404()
+    page = request.args.get('page', 1, type=int)
+    posts = user.followed_posts().paginate(
+        page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+    next_url = url_for(
+        'index', page=posts.next_num) if posts.next_num else None
+    prev_url = url_for(
+        'index', page=posts.prev_num) if posts.prev_num else None
+    return render_template('user.html.j2', user=user, posts=posts.items,
+                           next_url=next_url, prev_url=prev_url)
+                           
+ <
+你好！从你提供的代码片段来看，我注意到在登录成功后，你使用了 login_user() 函数来登录用户。但是，login_user() 函数只接受一个 User 类型的对象。
+由于你的企业账号是另一个类（Restaurant），所以登录企业账号时可能出现了问题。
+
+Flask-Login 提供的 UserMixin 只能用于一个用户类。你可以尝试通过创建自定义的登录函数，让 Flask-Login 同时支持两个类。
+这是一个简单的示范：
+
+首先，在你的 models.py 文件中，为用户（User）和餐厅（Restaurant）两个类创建一个共同的基类（BaseUser）。
+这个基类包含了 Flask-Login 需要的属性和方法。
+
+
+from flask_login import UserMixin
+
+class BaseUser(UserMixin):
+    # ...
+    # 把 UserMixin 需要的属性和方法放到这里
+    # ...
+
+class User(BaseUser, db.Model):
+    # ...
+    # User 类的定义
+    # ...
+
+class Restaurant(BaseUser, db.Model):
+    # ...
+    # Restaurant 类的定义
+    # ...
+接下来，在 routes.py 文件中，修改登录功能以支持两个类。这里我们创建一个 load_user 函数，根据用户类型从数据库中加载用户或餐厅对象。
+同时，我们需要修改 user_loader 装饰器，让它能够同时处理两个类。
+
+首先，在 routes.py 文件顶部，导入 Restaurant 类：
+
+
+from app.models import User, Restaurant
+然后，修改 load_user 函数如下：
+
+
+from flask_login import user_loader
+
+@login_manager.user_loader
+def load_user(id):
+    user = User.query.get(int(id))
+    if user:
+        return user
+    else:
+        return Restaurant.query.get(int(id))
+最后，更新 login() 函数，让它处理用户和餐厅的登录。
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user_type = request.form['user_type']
+        if user_type == 'user':
+            user = User.query.filter_by(username=form.username.data).first()
+            if user is None or not user.check_password(form.password.data):
+                flash(_('Invalid username or password'))
+                return redirect(url_for('login'))
+            login_user(user, remember=form.remember_me.data)
+        elif user_type == 'restaurant':
+            restaurant = Restaurant.query.filter_by(
+            username=form.username.data).first()
+            if restaurant is None or not restaurant.check_password(form.password.data):
+                flash(_('Invalid username or password'))
+                return redirect(url_for('login'))
+            login_user(restaurant, remember=form.remember_me.data)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        return redirect(next_page)
+    return render_template('login.html.j2', title=_('Sign In'), form=form)
+通过这些修改，你应该可以同时处理用户和餐厅的登录。如果问题仍然存在，请告诉我，我会继续协助你解决问题。祝你好运！
+
+>
+你好，我们现在开始用python,docker和flask制作网站。
+我需要做一个用户登录系统和一个餐厅登录系统。餐厅登录系统为企业账号，用户登录系统为普通用户。
+但是在我创建两个类之后，只有普通用户成功地登录，全部企业账号登录后，都進入了一个普通用户账号信息。
+可能是我的一些設置不適用於企業帳戶？
+我该如何解决这个问题？谢谢!
+以下是我的部分forms.py內容:
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, RadioField,
+TextAreaField
+from wtforms.validators import ValidationError, DataRequired, Email, EqualTo,
+Length
+from flask_babel import _, lazy_gettext as _l
+from app.models import User, Restaurant
+
+class LoginForm(FlaskForm):
+username = StringField(_l('Username'), validators=[DataRequired()])
+password = PasswordField(_l('Password'), validators=[DataRequired()])
+remember_me = BooleanField(_l('Remember Me'))
+user_type = RadioField(_l('User Type'), choices=[(
+'user', 'User'), ('restaurant', 'Restaurant')], validators=[DataRequired()])
+submit = SubmitField(_l('Sign In'))
+
+class RegistrationForm(FlaskForm):
+username = StringField(_l('Username'), validators=[DataRequired()])
+email = StringField(_l('Email'), validators=[DataRequired(), Email()])
+password = PasswordField(_l('Password'), validators=[DataRequired()])
+password2 = PasswordField(
+_l('Repeat Password'), validators=[DataRequired(),
+EqualTo('password')])
+user_type = RadioField(_l('User Type'), choices=[(
+'user', 'User'), ('restaurant', 'Restaurant')], validators=[DataRequired()])
+submit = SubmitField(_l('Register'))
+
+def validate_username(self, username):
+    user = User.query.filter_by(username=username.data).first()
+    if user is not None:
+        raise ValidationError(_('Please use a different username.'))
+
+def validate_email(self, email):
+    user = User.query.filter_by(email=email.data).first()
+    if user is not None:
+        raise ValidationError(_('Please use a different email address.'))
+class ResetPasswordRequestForm(FlaskForm):
+email = StringField(_l('Email'), validators=[DataRequired(), Email()])
+submit = SubmitField(_l('Request Password Reset'))
+
+class ResetPasswordForm(FlaskForm):
+password = PasswordField(_l('Password'), validators=[DataRequired()])
+password2 = PasswordField(
+_l('Repeat Password'), validators=[DataRequired(),
+EqualTo('password')])
+submit = SubmitField(_l('Request Password Reset'))
+
+class EditProfileForm(FlaskForm):
+username = StringField(_l('Username'), validators=[DataRequired()])
+about_me = TextAreaField(_l('About me'),
+validators=[Length(min=0, max=140)])
+submit = SubmitField(_l('Submit'))
+
+def __init__(self, original_username, *args, **kwargs):
+    super(EditProfileForm, self).__init__(*args, **kwargs)
+    self.original_username = original_username
+
+def validate_username(self, username):
+    if username.data != self.original_username:
+        user = User.query.filter_by(username=self.username.data).first()
+        if user is not None:
+            raise ValidationError(_('Please use a different username.'))
+class PostForm(FlaskForm):
+post = TextAreaField(_l('Say something'), validators=[DataRequired()])
+submit = SubmitField(_l('Submit'))
+
+<
+根据您提供的代码，您可能在处理登录逻辑时没有根据用户类型（普通用户或餐厅）进行区分。
+为了解决这个问题，您需要在处理登录请求时检查用户类型，并根据用户类型选择适当的身份验证方法。
+以下是一个可能的解决方案：
+
+首先，在您的 models.py 文件中添加一个 UserType 枚举类，以便更轻松地处理用户类型：
+from enum import Enum
+
+class UserType(Enum):
+    USER = 'user'
+    RESTAURANT = 'restaurant'
+
+然后，在您的 routes.py 文件中，根据用户类型调整登录视图函数。这是一个示例：
+
+from app.models import UserType
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user_type = form.user_type.data
+        if user_type == UserType.USER.value:
+            user = User.query.filter_by(username=form.username.data).first()
+        elif user_type == UserType.RESTAURANT.value:
+            user = Restaurant.query.filter_by(username=form.username.data).first()
+        else:
+            flash(_('Invalid user type'))
+            return redirect(url_for('login'))
+
+        if user is None or not user.check_password(form.password.data):
+            flash(_('Invalid username or password'))
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        return redirect(next_page)
+    return render_template('login.html', title=_('Sign In'), form=form)
+    
+这里根据 user_type 的值来查询 User 或 Restaurant 表。
+如果用户类型无效或不存在，则会显示相应的错误消息。
+
+在应用这个修改后，您应该能够根据用户类型正确登录。
+请确保在其他视图函数中也检查用户类型，以便只显示适当的信息和功能。
+
+>
+你好！我以前问过你一个问题
+你回答了我:
+你好！从你提供的代码片段来看，我注意到在登录成功后，你使用了 login_user() 函数来登录用户。但是，login_user() 函数只接受一个 User 类型的对象。
+由于你的企业账号是另一个类（Restaurant），所以登录企业账号时可能出现了问题。
+
+Flask-Login 提供的 UserMixin 只能用于一个用户类。你可以尝试通过创建自定义的登录函数，让 Flask-Login 同时支持两个类。
+这是一个简单的示范：
+
+首先，在你的 models.py 文件中，为用户（User）和餐厅（Restaurant）两个类创建一个共同的基类（BaseUser）。
+这个基类包含了 Flask-Login 需要的属性和方法。
+from flask_login import UserMixin
+
+class BaseUser(UserMixin):
+    # ...
+    # 把 UserMixin 需要的属性和方法放到这里
+    # ...
+
+class User(BaseUser, db.Model):
+    # ...
+    # User 类的定义
+    # ...
+
+class Restaurant(BaseUser, db.Model):
+    # ...
+    # Restaurant 类的定义
+    # ...
+抱歉，请问我应该把什么 UserMixin 需要的属性和方法放到这里?
+User 类的定义?Restaurant 类的定义?
+
+以下是我的部分route.py內容:
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+    user_type = "user"
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<User {self.username}>'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def avatar(self, size):
+        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+            digest, size)
+
+    def follow(self, user):
+        if not self.is_following(user):
+            self.followed.append(user)
+
+    def unfollow(self, user):
+        if self.is_following(user):
+            self.followed.remove(user)
+
+    def is_following(self, user):
+        return self.followed.filter(followers.c.followed_id == user.id).count() > 0
+
+    def followed_posts(self):
+        followed = Post.query.join(
+            followers, followers.c.followed_id == Post.user_id
+        ).filter(followers.c.follower_id == self.id)
+        own = Post.query.filter_by(user_id=self.id)
+        return followed.union(own).order_by(Post.timestamp.desc())
+
+    def get_reset_password_token(self, expires_in=600):
+        return jwt.encode({"reset_password": self.id,
+                           "exp": datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)},
+                          app.config["SECRET_KEY"], algorithm="HS256")
+
+    @staticmethod
+    def verify_reset_password_token(token):
+        try:
+            id = jwt.decode(token, app.config["SECRET_KEY"], algorithms="HS256")[
+                "reset_password"]
+        except:
+            return None
+        return User.query.get(id)
+
+class Restaurant(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    user_type = "restaurant"
+    password_hash = db.Column(db.String(128))
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    blog_posts = db.relationship('BlogPost', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<Restaurant {self.username}>'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def avatar(self, size):
+        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+            digest, size)
+<
+你好！根据你提供的代码，我可以帮助你把 UserMixin 需要的属性和方法移到 BaseUser 类中。
+首先，在 models.py 文件中创建一个 BaseUser 类，然后让 User 类和 Restaurant 类继承这个基类。
+在这个基类中，我们只需要包含 UserMixin 需要的属性和方法，其他特定于 User 和 Restaurant 的内容应当保留在各自的类定义中。
+
+首先，我们创建一个 BaseUser 类并包含 UserMixin 需要的属性和方法：
+
+from flask_login import UserMixin
+
+class BaseUser(UserMixin, db.Model):
+    __abstract__ = True
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def avatar(self, size):
+        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+            digest, size)
+            
+然后，将 User 和 Restaurant 类改为继承 BaseUser 类，并删除其中与 BaseUser 重复的属性和方法：
+
+class User(BaseUser):
+    # ...
+    # User 类的定义，去掉与 BaseUser 重复的部分
+    # ...
+
+class Restaurant(BaseUser):
+    # ...
+    # Restaurant 类的定义，去掉与 BaseUser 重复的部分
+    # ...
+    
+这是修改后的 User 类和 Restaurant 类：
+
+class User(BaseUser):
+    username = db.Column(db.String(64), index=True, unique=True)
+    user_type = "user"
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<User {self.username}>'
+
+    # 其他 User 类特有的方法
+    # ...
+
+class Restaurant(BaseUser):
+    username = db.Column(db.String(64), index=True, unique=True)
+    user_type = "restaurant"
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    blog_posts = db.relationship('BlogPost', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<Restaurant {self.username}>'
+
+现在，User 和 Restaurant 类都继承自 BaseUser 类，并且在这个基类中包含了 UserMixin 需要的属性和方法。
+这样就可以让 Flask-Login 同时支持 User 类和 Restaurant 类了。
+
+>
+你好，我们现在开始用python,docker和flask制作网站。
+我需要做一个用户登录系统和一个餐厅登录系统。餐厅登录系统为企业账号，用户登录系统为普通用户。
+我想要普通用户可以预订餐厅安排的座位。
+我该如何做到这个效果？谢谢!
+以下是我的部分models.py內容:
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+    user_type = "user"
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    followed = db.relationship(
+        'User', secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id == id),
+        backref=db.backref('followers', lazy='dynamic'), lazy='dynamic')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<User {self.username}>'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def avatar(self, size):
+        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+            digest, size)
+
+    def follow(self, user):
+        if not self.is_following(user):
+            self.followed.append(user)
+
+    def unfollow(self, user):
+        if self.is_following(user):
+            self.followed.remove(user)
+
+    def is_following(self, user):
+        return self.followed.filter(followers.c.followed_id == user.id).count() > 0
+
+    def followed_posts(self):
+        followed = Post.query.join(
+            followers, followers.c.followed_id == Post.user_id
+        ).filter(followers.c.follower_id == self.id)
+        own = Post.query.filter_by(user_id=self.id)
+        return followed.union(own).order_by(Post.timestamp.desc())
+
+    def get_reset_password_token(self, expires_in=600):
+        return jwt.encode({"reset_password": self.id,
+                           "exp": datetime.now(tz=timezone.utc) + timedelta(seconds=expires_in)},
+                          app.config["SECRET_KEY"], algorithm="HS256")
+
+    @staticmethod
+    def verify_reset_password_token(token):
+        try:
+            id = jwt.decode(token, app.config["SECRET_KEY"], algorithms="HS256")[
+                "reset_password"]
+        except:
+            return None
+        return User.query.get(id)
+
+class Restaurant(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    user_type = "restaurant"
+    password_hash = db.Column(db.String(128))
+    about_me = db.Column(db.String(140))
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    blog_posts = db.relationship('BlogPost', backref='author', lazy='dynamic')
+
+    def __repr__(self) -> str:
+        return f'<Restaurant {self.username}>'
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    def avatar(self, size):
+        digest = md5(self.email.lower().encode("utf-8")).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(
+            digest, size)
+
+<
+为了实现预订餐厅座位的功能，您需要对您的数据模型进行一些更改。
+首先，您需要为餐厅创建一个表示座位的模型，用户可以预订这些座位。
+然后，您需要创建一个表示预订的模型，该模型将用户与他们预订的座位相关联。
+
+以下是添加的模型示例：
+
+class Seat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'))
+    number = db.Column(db.Integer, unique=True)
+    reserved = db.relationship('Reservation', backref='seat', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Seat {self.number}>'
+
+
+class Reservation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    seat_id = db.Column(db.Integer, db.ForeignKey('seat.id'))
+    reservation_time = db.Column(db.DateTime, nullable=False)
+
+    def __repr__(self):
+        return f'<Reservation user_id:{self.user_id} seat_id:{self.seat_id} reservation_time:{self.reservation_time}>'
+        
+接下来，您需要在 Flask 应用程序中创建相应的视图和表单。首先，您需要一个表单来处理预订信息。这里是一个简单的预订表单示例：
+
+class ReservationForm(FlaskForm):
+    seat_number = IntegerField('Seat Number', validators=[DataRequired()])
+    reservation_time = DateTimeField('Reservation Time', format="%Y-%m-%d %H:%M", validators=[DataRequired()])
+    submit = SubmitField('Reserve')
+    
+接下来，创建一个视图来处理预订表单：
+
+@app.route('/reserve', methods=['GET', 'POST'])
+@login_required
+def reserve():
+    form = ReservationForm()
+    if form.validate_on_submit():
+        seat = Seat.query.filter_by(number=form.seat_number.data).first()
+        if seat is not None:
+            reservation = Reservation(user_id=current_user.id, seat_id=seat.id, reservation_time=form.reservation_time.data)
+            db.session.add(reservation)
+            db.session.commit()
+            flash('Your reservation has been made!')
+            return redirect(url_for('index'))
+        else:
+            flash('Seat not found. Please try again.')
+    return render_template('reserve.html', title='Reserve Seat', form=form)
+    
+最后，创建一个模板文件 reserve.html 来显示预订表单：
+
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Reserve a Seat</h1>
+    <form action="" method="post">
+        {{ form.hidden_tag() }}
+        <p>
+            {{ form.seat_number.label }}<br>
+            {{ form.seat_number(size=32) }}
+        </p>
+        <p>
+            {{ form.reservation_time.label }}<br>
+            {{ form.reservation_time() }}
+        </p>
+        <p>{{ form.submit() }}</p>
+    </form>
+{% endblock %}
+
+这样，当用户登录并访问 /reserve 路径时，他们将能够填写预订表单并预订座位。
+您可能还需要对这个基本示例进行一些调整，以适应您的应用程序需求，例如添加错误处理、输入验证或显示可用座位等。
+
+最后，别忘了在您的 Dockerfile 中包含所有必要的依赖项并使用适当的命令构建和运行 Flask 应用程序。
+

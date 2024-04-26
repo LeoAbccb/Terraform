@@ -1,0 +1,43 @@
+1.Users table: This table would store information about registered users of the website, such as their username, 
+              email address, password (encrypted), date of registration, and any other relevant details.
+
+
+2.Reviews table: This table would store all user reviews of restaurants on the website, including the user's username, 
+              the restaurant being reviewed, the date of the review, a rating (e.g., on a scale of 1 to 5 stars), and the text of the review itself.
+
+
+
+
+4.Favorites table: This table would contain information about the restaurants that users have added to their list of favorites, 
+              including the user's username and the restaurant being favorited.
+
+
+
+
+6.Restaurants table: This table would contain information about the restaurants listed on the website, including their name, address, 
+              phone number, website URL, hours of operation, cuisine type, price range, and any other relevant details.
+
+
+3.Photos table: This table would store all photos uploaded by users for restaurants on the website, including the user's username, 
+              the restaurant the photo was taken at, the date the photo was taken, and the URL or file path of the photo itself.
+
+
+
+5.Menus table: This table would contain information about the menus offered by each restaurant, including the name of the menu (e.g., lunch, dinner), 
+              the items on the menu, and their prices.
+
+7. order table: 预定桌位
+
+
+
+
+
+
+
+
+
+
+
+
+
+

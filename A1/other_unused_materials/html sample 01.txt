@@ -1,0 +1,101 @@
+{% extends "base.html.j2" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block app_content %}
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">My Website</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="#about">About</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#photos">Photos</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#menu">Menu</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#booking">Booking</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-md-6">
+        <h1>{{ _('Hi, %(username)s!', username=current_user.username) }}</h1>
+      </div>
+      <div class="col-md-6">
+        {% for row in shop %}
+        <div class="card mb-3">
+          <img class="card-img-top" src="{{ row.link_p }}" alt="{{ row.title }}">
+          <div class="card-body">
+            <h5 class="card-title"><a href ="{{ row.link_web }}">{{ row.title }}</a></h5>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="row" id="about">
+      {% for row in pp %}
+      <div class="col-md-12">
+        <h2>About</h2>
+        <p>{{ row.info }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="row" id="photos">
+      {% for row in pp %}
+      <div class="col-md-12">
+        <h2>Photos</h2>
+        <img class="img-fluid rounded" src="{{ row.link_photo }}" alt="{{ row.title }}">
+      </div>
+      {% endfor %}
+    </div>
+    <div class="row" id="menu">
+      {% for row in pp %}
+      <div class="col-md-12">
+        <h2>Menu</h2>
+        <img class="img-fluid rounded" src="{{ row.menu_p }}" alt="{{ row.title }}">
+      </div>
+      {% endfor %}
+    </div>
+    <div class="row" id="booking">
+      <div class="col-md-12">
+        <h2>Booking</h2>
+        <form method="POST" action="{{ url_for('rest') }}" class="mt-4">
+          {{ form.csrf_token }}
+          <div class="form-group">
+            {{ form.user_id.label }} {{ form.user_id(class="form-control") }}
+          </div>
+          <div class="form-group">
+            {{ form.time.label }} {{ form.time(class="form-control") }}
+          </div>
+          <div class="form-group">
+            {{ form.people.label }} {{ form.people(class="form-control") }}
+          </div>
+          <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <script>
+    $(document).ready(function() {
+      $('a[href^="#"]').on('click',function (e) {
+          e.preventDefault();
+  
+          var target = this.hash;
+          var $target = $(target);
+  
+          $('html, body').stop().animate({
+              'scrollTop': $target.offset().top
+          }, 900, 'swing', function () {
+              window.location.hash = target;
+          });
+      });
+    });
+  </script>
+{% endblock %}

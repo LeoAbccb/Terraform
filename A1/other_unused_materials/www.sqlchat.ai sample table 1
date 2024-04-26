@@ -1,0 +1,170 @@
+>Design 9 tables using for https://www.openrice.com/zh/hongkong and generate it in flask sqlalchemy code
+
+
+<
+Table 1: User
+
+id (primary key)
+username
+email
+password
+created_at
+updated_at
+************************
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(60), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+************************
+
+Table 2: Restaurant
+
+id (primary key)
+name
+address
+phone
+website
+created_at
+updated_at
+
+***********************
+
+class Restaurant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    address = db.Column(db.String(200), nullable=False)
+    phone = db.Column(db.String(20), nullable=False)
+    website = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+*****************************
+
+Table 3: Cuisine
+
+id (primary key)
+name
+created_at
+updated_at
+
+*******************************
+class Cuisine(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+********************************
+
+Table 4: RestaurantCuisine
+
+id (primary key)
+restaurant_id (foreign key to Restaurant)
+cuisine_id (foreign key to Cuisine)
+created_at
+updated_at
+
+******************************
+class RestaurantCuisine(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    cuisine_id = db.Column(db.Integer, db.ForeignKey('cuisine.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+***********************************
+
+Table 5: Review
+
+id (primary key)
+user_id (foreign key to User)
+restaurant_id (foreign key to Restaurant)
+rating
+comment
+created_at
+updated_at
+
+***********************************
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+*****************************************
+
+Table 6: Bookmark
+
+id (primary key)
+user_id (foreign key to User)
+restaurant_id (foreign key to Restaurant)
+created_at
+updated_at
+
+***************************************
+class Bookmark(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+*****************************************
+
+Table 7: Photo
+
+id (primary key)
+user_id (foreign key to User)
+restaurant_id (foreign key to Restaurant)
+url
+created_at
+updated_at
+
+***************************************
+class Photo(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    url = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+*****************************************
+
+Table 8: Tag
+
+id (primary key)
+name
+created_at
+updated_at
+
+******************************************
+class Tag(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+********************************************
+
+Table 9: RestaurantTag
+
+id (primary key)
+restaurant_id (foreign key to Restaurant)
+tag_id (foreign key to Tag)
+created_at
+updated_at
+
+********************************************
+class RestaurantTag(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    tag_id = db.Column(db.Integer, db.ForeignKey('tag.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+*************************************************

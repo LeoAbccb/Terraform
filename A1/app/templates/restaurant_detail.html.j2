@@ -1,0 +1,10 @@
+{% extends "base.html.j2" %}
+{% block app_content %}
+    <form method="POST" action="{{ url_for('adds') }}">
+        {{ form.csrf_token }}
+        <div>{{ form.link_photo.label }} {{ form.link_photo }}</div>
+        <div>{{ form.menu_p.label }} {{ form.menu_p }}</div>
+        <div>{{ form.info.label }} {{ form.info }}</div>
+        <div>{{ form.submit }}</div>
+    </form>
+{% endblock %}

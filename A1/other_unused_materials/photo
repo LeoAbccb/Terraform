@@ -1,0 +1,217 @@
+你好，我们现在开始用python,docker和flask制作网站。
+我需要做一个用户登录系统和一个餐厅登录系统。餐厅登录系统为企业账号，用户登录系统为普通用户。
+我想要普通用户可以对餐厅写评论并且上传照片。
+我该如何做到这个效果？谢谢!
+以下是我的部分routes.py內容:
+from datetime import datetime
+from flask import render_template, flash, redirect, url_for, request, g
+from flask_login import login_user, logout_user, current_user, login_required
+from flask_login.login_manager import LoginManager
+from werkzeug.urls import url_parse
+from flask_babel import _, get_locale
+from app import app, db
+from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm,
+ResetPasswordRequestForm, ResetPasswordForm
+from app.models import User, Post, Restaurant
+from app.email import send_password_reset_email
+
+@app.route('/explore')
+@login_required
+def explore():
+page = request.args.get('page', 1, type=int)
+posts = Post.query.order_by(Post.timestamp.desc()).paginate(
+page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+next_url = url_for(
+'explore', page=posts.next_num) if posts.next_num else None
+prev_url = url_for(
+'explore', page=posts.prev_num) if posts.prev_num else None
+return render_template('index.html.j2', title=_('Explore'),
+posts=posts.items, next_url=next_url,
+prev_url=prev_url)
+
+@app.route('/user/<username>')
+@login_required
+def user(username):
+user = User.query.filter_by(username=username).first_or_404()
+page = request.args.get('page', 1, type=int)
+posts = user.followed_posts().paginate(
+page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+next_url = url_for(
+'index', page=posts.next_num) if posts.next_num else None
+prev_url = url_for(
+'index', page=posts.prev_num) if posts.prev_num else None
+return render_template('user.html.j2', user=user, posts=posts.items,
+next_url=next_url, prev_url=prev_url)
+
+@app.route('/restaurant/<name>')
+@login_required
+def restaurant(name):
+restaurant = restaurant.query.filter_by(name=name).first_or_404()
+page = request.args.get('page', 1, type=int)
+posts = user.followed_posts().paginate(
+page=page, per_page=app.config["POSTS_PER_PAGE"], error_out=False)
+next_url = url_for(
+'index', page=posts.next_num) if posts.next_num else None
+prev_url = url_for(
+'index', page=posts.prev_num) if posts.prev_num else None
+return render_template('user.html.j2', user=user, posts=posts.items,
+next_url=next_url, prev_url=prev_url)
+
+@app.route('/blog', methods=['GET', 'POST'])
+@login_required
+def blog():
+if not isinstance(current_user, Restaurant):
+flash('Only restaurants can set a blog.')
+return redirect(url_for('index'))
+if request.method == 'POST':
+blog = request.form['blog']
+current_user.blog = blog
+db.session.commit()
+flash('Blog updated successfully.')
+return render_template('blog.html')
+
+************************************
+
+为了实现用户可以对餐厅写评论并上传照片的功能，您需要在数据库中创建一个新的表Review，用于存储用户的评论和照片。然后，您需要创建一个新的表单类ReviewForm，让用户可以填写评论和上传照片。最后，您需要添加一个新的路由，使用户可以提交评论。
+
+首先，在app/models.py中创建Review表：
+
+python
+Copy
+from app import db
+import datetime
+
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.String(140))
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'))
+    image = db.Column(db.String(255))
+
+    def __repr__(self):
+        return '<Review {}>'.format(self.body)
+接下来，在app/forms.py中创建一个新的表单类ReviewForm：
+
+python
+Copy
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField, TextAreaField, FileField
+from wtforms.validators import DataRequired
+
+class ReviewForm(FlaskForm):
+    body = TextAreaField('Write your review', validators=[DataRequired()])
+    image = FileField('Upload an image (optional)')
+    submit = SubmitField('Submit')
+在app/routes.py中，您需要添加一个新的路由，让用户可以提交评论：
+
+python
+Copy
+from app.forms import LoginForm, RegistrationForm, EditProfileForm, PostForm, \
+    ResetPasswordRequestForm, ResetPasswordForm, ReviewForm
+from app.models import User, Post, Restaurant, Review
+from werkzeug.utils import secure_filename
+import os
+
+@app.route('/restaurant/<name>/review', methods=['GET', 'POST'])
+@login_required
+def review(name):
+    restaurant = Restaurant.query.filter_by(name=name).first_or_404()
+    form = ReviewForm()
+    if form.validate_on_submit():
+        review = Review(body=form.body.data, author=current_user, restaurant=restaurant)
+        if form.image.data:
+            image_file = form.image.data
+            filename = secure_filename(image_file.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image_file.save(image_path)
+            review.image = image_path
+        db.session.add(review)
+        db.session.commit()
+        flash('Your review and image have been submitted.')
+        return redirect(url_for('restaurant', name=restaurant.name))
+    return render_template('review.html', title='Review', form=form)
+请注意，您需要在Flask应用的配置中设置UPLOAD_FOLDER。在app/__init__.py中添加以下代码：
+
+python
+Copy
+app.config['UPLOAD_FOLDER'] = 'path/to/your/upload/folder'
+最后，在templates文件夹中创建一个review.html模板，以显示评论表单：
+
+html
+Copy
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Write a review for {{ restaurant.name }}</h1>
+    <form action="" method="post" enctype="multipart/form-data">
+        {{ form.hidden_tag() }}
+        <p>
+            {{ form.body.label }}<br>
+            {{ form.body(size=32) }}<br>
+        </p>
+        <p>
+            {{ form.image.label }}<br>
+            {{ form.image() }}<br>
+        </p>
+        <p>{{ form.submit() }}</p>
+    </form>
+{% endblock %}
+这些更改应该允许用户为餐厅写评论并上传照片。不过，您可能还需要修改restaurant路由和模板，以显示评论和照片。还需要确保用户和餐厅之间的关系正确设置。
+
+**********************************************************
+Sure, here's an example of how you can upload an image to a database in Python using Flask and SQLAlchemy:
+
+1. Install the required libraries: You'll need to install Flask, SQLAlchemy, and Pillow. You can do this using pip, like this:
+
+   `
+   pip install flask sqlalchemy pillow
+   
+
+2. Set up the database: Create a new database and table to store the images. Here's an example SQL schema to create a table 
+    called `images` with an `id` column, a `name` column to store the file name, and a `data` column to store the binary data:
+
+   `
+   CREATE TABLE images (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       name TEXT NOT NULL,
+       data BLOB NOT NULL
+   );
+   
+
+3. Create a Flask app: Create a new Flask app and set up a route to handle image uploads. Here's an example Flask app that listens for POST 
+    requests to `/upload` and expects a file with the name `image`:
+
+   `python
+   from flask import Flask, request, jsonify
+   from flask_sqlalchemy import SQLAlchemy
+   from PIL import Image
+
+   app = Flask(__name__)
+   app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+   db = SQLAlchemy(app)
+
+   class ImageModel(db.Model):
+       id = db.Column(db.Integer, primary_key=True)
+       name = db.Column(db.String)
+       data = db.Column(db.LargeBinary)
+
+   @app.route('/upload', methods=['POST'])
+   def upload():
+       file = request.files['image']
+       if not file:
+           return jsonify({'error': 'No file was uploaded.'}), 400
+       image = Image.open(file)
+       data = image.tobytes()
+       name = file.filename
+       image_model = ImageModel(name=name, data=data)
+       db.session.add(image_model)
+       db.session.commit()
+       return jsonify({'success': True}), 200
+   
+
+4. Test the app: Start the Flask app and test it by sending a POST request with an image file. You can use a tool like Postman to send the request.
+
+That's it! This example should give you a basic idea of how to upload an image to a database using Flask and SQLAlchemy. Keep in mind that this is just one 
+possible implementation, and there are many other ways to achieve the same result. You may need to modify this example to fit your specific requirements.
+

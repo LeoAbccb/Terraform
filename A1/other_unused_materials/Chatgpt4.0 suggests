@@ -1,0 +1,79 @@
+design 9 database tables for website https://www.openrice.com/zh/hongkong
+
+I will provide you with a high-level design of the 9 database tables and their respective fields for a website like OpenRice. Note that this is a basic design and may require further refinement to meet specific requirements.
+
+1.Users
+user_id (Primary Key, Integer)
+username (String)
+email (String)
+password (String)
+created_at (Datetime)
+updated_at (Datetime)
+
+2.Restaurants
+restaurant_id (Primary Key, Integer)
+name (String)
+address (String)
+city (String)
+district (String)
+latitude (Decimal)
+longitude (Decimal)
+price_range (String)
+opening_hours (String)
+phone_number (String)
+website (String)
+created_at (Datetime)
+updated_at (Datetime)
+
+3.Cuisines
+cuisine_id (Primary Key, Integer)
+name (String)
+created_at (Datetime)
+updated_at (Datetime)
+
+4.Restaurant_Cuisines (Many-to-Many Relationship between Restaurants and Cuisines)
+restaurant_cuisine_id (Primary Key, Integer)
+restaurant_id (Foreign Key, Integer)
+cuisine_id (Foreign Key, Integer)
+
+5.Reviews
+review_id (Primary Key, Integer)
+user_id (Foreign Key, Integer)
+restaurant_id (Foreign Key, Integer)
+title (String)
+content (Text)
+rating (Float)
+created_at (Datetime)
+updated_at (Datetime)
+
+6.Photos
+photo_id (Primary Key, Integer)
+user_id (Foreign Key, Integer)
+restaurant_id (Foreign Key, Integer)
+image_url (String)
+caption (String)
+created_at (Datetime)
+updated_at (Datetime)
+
+7.Bookmarks
+bookmark_id (Primary Key, Integer)
+user_id (Foreign Key, Integer)
+restaurant_id (Foreign Key, Integer)
+created_at (Datetime)
+updated_at (Datetime)
+
+8.Follows (User following another user)
+follow_id (Primary Key, Integer)
+follower_id (Foreign Key referring to Users, Integer)
+following_id (Foreign Key referring to Users, Integer)
+created_at (Datetime)
+updated_at (Datetime)
+
+9.Comments
+comment_id (Primary Key, Integer)
+user_id (Foreign Key, Integer)
+review_id (Foreign Key, Integer)
+content (Text)
+created_at (Datetime)
+updated_at (Datetime)
+These tables should provide a good starting point for the structure of a website like OpenRice. You can create and manage these tables using an ORM like SQLAlchemy in Python or build raw SQL queries to interact with the database.

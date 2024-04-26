@@ -1,0 +1,193 @@
+> 
+Thank you for last time 's answering. I also need to make a user login system together with a restaurant login system which restaurant login system is a business account, user login system is for normal user. Normal user can follow, write review, make booking and order food for restaurant. Business user can setup and update restaurant page and give info. Also, They can setuping and update their restaurant menu. The order and booking system will be shown in their pages, too.
+They should be able to setup and update these.
+May you give some samples for us ?
+Remember that we want to make website by docker and flask with python now.
+Thank you very much!
+
+<
+Sure, I can give you a basic example of how to create a user login system and a restaurant login system using Flask, SQLAlchemy, and Docker. 
+Please note that this example is minimal and might require further improvements to meet your specific needs.
+
+1.
+ Create the project structure:
+
+restaurant_app/
+    ├── app/
+    │   ├── __init__.py
+    │   ├── models.py
+    │   ├── routes.py
+    │   ├── templates/
+    │   │   ├── base.html
+    │   │   ├── index.html
+    │   │   ├── login.html
+    │   │   ├── register.html
+    │   │   ├── restaurant_panel.html
+    │   │   └── user_panel.html
+    │   └── static/
+    ├── config.py
+    ├── run.py
+    ├── requirements.txt
+    └── Dockerfile
+    
+    2.
+     Define your models (app/models.py):
+
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+
+db = SQLAlchemy()
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128))
+    is_restaurant = db.Column(db.Boolean, default=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+class Restaurant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User', backref='restaurant')
+
+# ... Add other models for menu items, bookings, etc.
+
+3.
+ Create your Flask application (app/__init__.py):
+
+from flask import Flask
+from .models import db
+from .routes import bp
+
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object('config')
+    
+    db.init_app(app)
+    
+    with app.app_context():
+        db.create_all()
+
+    app.register_blueprint(bp)
+
+    return app
+    
+    4.
+     Implement your routes and views (app/routes.py):
+
+from flask import Blueprint, render_template, request, flash, url_for, redirect
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from .models import User, Restaurant, db
+
+bp = Blueprint('routes', __name__)
+login_manager = LoginManager()
+login_manager.login_view = 'routes.login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@bp.before_app_request
+def before_request():
+    if current_user.is_authenticated:
+        # ... Add any additional logic for authenticated users
+
+@bp.route('/')
+def index():
+    return render_template('index.html')
+
+@bp.route('/register', methods=['GET', 'POST'])
+def register():
+    # ... Implement registration logic
+
+@bp.route('/login', methods=['GET', 'POST'])
+def login():
+    # ... Implement login logic
+
+@bp.route('/logout')
+@login_required
+def logout():
+    # ... Implement logout logic
+
+@bp.route('/user_panel')
+@login_required
+def user_panel():
+    # ... Implement user panel logic
+
+@bp.route('/restaurant_panel')
+@login_required
+def restaurant_panel():
+    # ... Implement restaurant panel logic
+
+# ... Add other routes for menu management, bookings, etc.
+
+5.
+ Create your HTML templates in the app/templates/ folder.
+ 
+6.
+
+Define your configuration (config.py):
+
+import os
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    'sqlite:///' + os.path.join(BASE_DIR, 'app.db')
+
+SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
+
+7.
+ Create a script to run your app (run.py):
+
+from app import create_app
+
+app = create_app()
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=80)
+    
+8.
+
+Add dependencies to requirements.txt:
+
+Flask==2.0.2
+Flask-SQLAlchemy==2.5.1
+Flask-Login==0.5.0
+Werkzeug==2.0.2
+gunicorn==20.1.0
+
+9.
+Create a Dockerfile for your application:
+
+FROM python:3.9
+
+WORKDIR /app
+
+COPY requirements.txtrequirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 80
+
+CMD ["gunicorn", "--workers=3", "-b", "0.0.0.0:80", "run:app"]
+
+10.
+Build and run your Docker container:
+
+In a terminal, navigate to the restaurant_app directory and run the following commands:
+
+docker build -t restaurant-app .
+docker run -d -p 80:80 --name restaurant-app-instance restaurant-app
+
+Now your Flask app should be running inside a Docker container, and you can access it at http://localhost.
+The example above provides a basic structure for your requirements, but you'll need to implement the logic for registration, login, panels, and other features as needed. 
+Additionally, you might want to use a more robust database like PostgreSQL for production.

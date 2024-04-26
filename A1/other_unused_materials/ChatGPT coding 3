@@ -1,0 +1,188 @@
+>Hello, We are starting to make website by docker and flask with python now.
+I also need to make a user login system together with a restaurant login system 
+which restaurant login system is a business account, user login system is for normal user. 
+Normal user can follow, write review, make booking and order food for restaurant. Business user can setup and update restaurant page and give info.
+Also, They can setup and update their restaurant menu. The order and booking system will be shown in their pages, too.
+They should be able to setup and update these.
+May you give some samples for us detailly?
+Thank you very much!
+
+<I can provide you with an outline and some sample code snippets to help you get started with your Docker, Flask, and Python-based website. 
+To achieve the desired functionality, you will need to implement user authentication, role-based access control, 
+and the necessary CRUD operations for your user and business accounts.
+
+Here's a detailed outline:
+
+1.Set up a Docker container for your Flask application.
+2.Create a Flask application with SQLAlchemy for database management.
+3.Define User and Restaurant models.
+4.Set up user authentication using Flask-Login.
+5.Implement role-based access control.
+6.Implement CRUD operations for users and restaurants.
+7.Create the necessary routes and templates.
+
+1.Setting up a Docker container
+Create a Dockerfile in your project's root directory with the following content:
+
+FROM python:3.8-slim
+
+WORKDIR /app
+
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
+
+COPY . .
+
+CMD ["flask", "run", "--host=0.0.0.0"]
+Create a requirements.txt file with the necessary dependencies:
+
+Flask==2.0.2
+Flask-SQLAlchemy==2.5.1
+Flask-Login==0.5.0
+
+2.Creating the Flask application
+Create a main.py file with the following content:
+
+from flask import Flask, render_template, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+
+# Import your routes here
+from your_project_package import routes
+
+if __name__ == '__main__':
+    app.run(debug=True)
+    
+3.Defining the User and Restaurant models
+Create a models.py file and define the User and Restaurant models:
+
+from flask_login import UserMixin
+from sqlalchemy.orm import relationship
+from your_project_package import db, login_manager
+
+class User(db.Model, UserMixin):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(60), nullable=False)
+    role = db.Column(db.String(20), nullable=False)
+    restaurants = relationship("Restaurant", backref="owner", lazy=True)
+
+class Restaurant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+4.Setting up user authentication
+In your routes.py file, set up the necessary routes for user authentication:
+
+from flask import render_template, redirect, url_for, flash
+from flask_login import login_user, logout_user, login_required
+from your_project_package.forms import LoginForm, RegistrationForm
+from your_project_package.models import User
+from your_project_package import app, db, login_manager
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and user.password == form.password.data:
+            login_user(user)
+            return redirect(url_for("home"))
+        else:
+            flash("Login unsuccessful. Please check your email and password.")
+    return render_template("login.html", form=form)
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for("home"))
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data, password=form.password.data, role=form.role.data)
+        db.session.add(user)
+        db.session.commit()
+        flash("Account created successfully")
+        return redirect(url_for("login"))
+    return render_template("register.html", form=form)
+    
+5. Implementing role-based access control
+Update your User model to include a has_role method:
+
+class User(db.Model, UserMixin):
+    # ...
+    def has_role(self, role):
+        return self.role == role
+        
+6.CRUD operations for users and restaurants
+You will need to create the necessary routes and templates to handle user and restaurant CRUD operations. 
+This will include routes for creating, reading, updating, and deleting restaurants,
+as well as the ability for users to follow,write reviews, make bookings, and order food.
+
+Here's an example of the route for creating a new restaurant:
+
+from your_project_package.forms import CreateRestaurantForm
+from your_project_package.models import Restaurant
+
+@app.route("/create_restaurant", methods=["GET", "POST"])
+@login_required
+def create_restaurant():
+    if not current_user.has_role("business"):
+        flash("You don't have permission to access this page.")
+        return redirect(url_for("home"))
+        
+    form = CreateRestaurantForm()
+    if form.validate_on_submit():
+        restaurant = Restaurant(name=form.name.data,
+                                description=form.description.data,
+                                owner_id=current_user.id)
+        db.session.add(restaurant)
+        db.session.commit()
+        flash("Restaurant created!")
+        return redirect(url_for("home"))
+    return render_template("create_restaurant.html", form=form)
+
+7.Creating the necessary routes and templates
+Finally, you will need to create templates for each of the routes, such as login.html, register.html, create_restaurant.html, and so on. 
+You can use the render_template function to render these templates and pass in the necessary data.
+
+Here's an example of a simple login.html template:
+
+{% extends "base.html" %}
+{% block content %}
+  <h2>Login</h2>
+  <form method="POST" action="{{ url_for('login') }}">
+    {{ form.csrf_token }}
+    <div class="form-group">
+      <label for="email">Email</label>
+      {{ form.email(class="form-control") }}
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      {{ form.password(class="form-control") }}
+    </div>
+    <button type="submit" class="btn btn-primary">Login</button>
+  </form>
+{% endblock %}
+
+<Following this outline and implementing the necessary routes and templates, you should be able to create a functional website with user and restaurant login systems,
+as well as the desired features for normal users and business users.
+
+Remember to adjust your imports in the example code snippets based on your project's package and file structure.
+

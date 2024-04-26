@@ -1,0 +1,46 @@
+你好！根据你的描述，这个问题可能是因为你没有正确地将 Flask 应用与 SQLAlchemy 实例关联起来。为了帮助你解决这个问题，请按照以下步骤进行操作：
+
+1.首先，确保你已经安装了 Flask 和 Flask-SQLAlchemy。可以使用以下命令进行安装：
+
+pip install Flask Flask-SQLAlchemy
+```
+
+2.接下来，在你的项目中创建一个 app.py 文件，并设置 Flask 应用以及 SQLAlchemy 实例。以下是一个简单的示例：
+
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///your_database.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+```
+
+这里，我们将数据库的 URI 设置为 SQLite 数据库，你可以根据需要更改为其他数据库。
+
+3.现在，我们创建两个模型：User 和 Restaurant，分别用于表示普通用户和餐厅。在 app.py 文件中添加以下代码：
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+
+class Restaurant(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+```
+
+4.为了在数据库中创建这些模型的表，我们需要运行以下命令：
+
+db.create_all()
+```
+
+你可以将这个命令添加到 `app.py` 文件的底部，或者在命令行中运行 `python -c "from app import db; db.create_all()"`。
+
+5.确保你的应用在初始化 SQLAlchemy 实例之后运行。例如，在 app.py 文件中：
+
+if __name__ == '__main__':
+    app.run()
+```
+按照以上步骤，你应该可以避免出现 RuntimeError。如果问题仍然存在，请提供更多关于你的代码结构和配置的信息，以便我们进一步帮助你解决问题。祝你好运！

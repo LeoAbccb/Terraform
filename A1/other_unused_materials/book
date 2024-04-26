@@ -1,0 +1,17 @@
+class Reservation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurant.id'), nullable=False)
+    time = db.Column(db.DateTime, nullable=False)
+    
+    # 创建预约
+@app.route('/reservation/create', methods=['GET', 'POST'])
+def create_reservation():
+    # 在这里实现创建预约逻辑
+    pass
+
+# 查看预约
+@app.route('/reservation/list', methods=['GET'])
+def list_reservations():
+    # 在这里实现查看预约逻辑
+    pass

@@ -1,0 +1,87 @@
+{% extends "base.html.j2" %}
+{% import 'bootstrap/wtf.html' as wtf %}
+{% block app_content %}
+    <style>
+    .photos{
+    width:300px;
+    height:250px;
+    }
+    .shop-items {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    </style>
+    <div style="display: flex; flex-direction: column; height: 30vh;">
+        <div style="flex: 1;">
+            <h1>{{ _('Hi, %(username)s! There are some restaurant recommendation for you!', username=current_user.username) }}</h1>
+        </div>
+        <div style="flex: 1;" class="shop-items">
+        {% for row in shop %}
+        <div style="margin-right: 20px;">
+            <img class="photos" src="{{ row.link_p }}">
+            <a href ="{{ row.link_web }}"><h3>{{ row.title }}</h3></a>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="center">
+        <button onclick="showContent1()">简介</button>
+        <button onclick="showContent2()">照片</button>
+        <button onclick="showContent3()">菜单</button>
+        <button onclick="showContent4()">预约</button>
+    </div>
+    {% for row in pp %}
+    <div class="content" id="content1">
+        <!-- 第一个内容块 -->
+        <p>{{ row.info }}</p>
+    </div>
+    <div id="content2" style="display: none;">
+        <!-- 第二个内容块 -->
+        <img class="photo1" src="{{ row.link_photo }}">
+    </div>
+    <div id="content3" style="display: none;">
+        <!-- 第3个内容块 -->
+        <img class="photo1" src="{{ row.menu_p }}">
+    </div>
+    <div id="content4" style="display: none;">
+        <!-- 第4个内容块 -->
+        <form method="POST" action="{{ url_for('rest') }}">
+            {{ form.csrf_token }}
+            <div>{{ form.user_id.label }} {{ form.user_id }}</div>
+            <div>{{ form.time.label }} {{ form.time }}</div>
+            <div>{{ form.people.label }} {{ form.people }}</div>
+            <div>{{ form.submit }}</div>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+        function showContent1() {
+            document.getElementById("content1").style.display = "block";
+            document.getElementById("content2").style.display = "none";
+            document.getElementById("content3").style.display = "none";
+            document.getElementById("content4").style.display = "none";
+        }
+        function showContent2() {
+            document.getElementById("content1").style.display = "none";
+            document.getElementById("content2").style.display = "block";
+            document.getElementById("content3").style.display = "none";
+            document.getElementById("content4").style.display = "none";
+        }
+
+        function showContent3() {
+            document.getElementById("content1").style.display = "none";
+            document.getElementById("content2").style.display = "none";
+            document.getElementById("content3").style.display = "block";
+            document.getElementById("content4").style.display = "none";
+        }
+
+        function showContent4() {
+            document.getElementById("content1").style.display = "none";
+            document.getElementById("content2").style.display = "none";
+            document.getElementById("content3").style.display = "none";
+            document.getElementById("content4").style.display = "block";
+        }
+</script>
+{% endblock %}
